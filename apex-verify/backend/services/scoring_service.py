@@ -32,18 +32,8 @@ def compute_confidence_breakdown(
     context_score: float = 0.5,
 ) -> Dict[str, Any]:
     """
-    Compute a structured fraud confidence breakdown.
-
-    All inputs are in [0, 1] where:
-      - Higher SAM2 confidence → image regions are well-defined (less suspicious)
-      - Higher ELA scores     → more compression anomalies (more suspicious)
-      - Higher similarity     → more duplicate-like (more suspicious)
-      - Higher AI gen score   → more likely AI-generated (more suspicious)
-      - Lower metadata score  → less consistent metadata (more suspicious)
-      - Lower physics score   → more lighting/shadow inconsistency (more suspicious)
-      - Lower context score   → more inconsistency with real-world events (more suspicious)
-
-    Returns authenticity_score in [0, 100] (higher = more authentic).
+    Compute a structured fraud confidence breakdown using a penalty-based model.
+    Authentic images start at 100 points, and penalties are deducted for strong fraud signals.
     """
     def clamp(x: float) -> float:
         return float(max(0.0, min(1.0, x)))
@@ -57,33 +47,46 @@ def compute_confidence_breakdown(
     phys = clamp(physics_score)
     ctx = clamp(context_score)
 
-    # Invert fraud-indicating signals so higher composite = more authentic
-    # ELA, region_ela, similarity, ai_gen  → these increase with fraud
-    # SAM2_confidence, metadata, physics, context → these decrease with fraud
-    authenticity_raw = (
-        WEIGHTS["sam2_confidence"] * sam2
-        + WEIGHTS["ela_score"] * (1.0 - ela)
-        + WEIGHTS["region_ela_score"] * (1.0 - r_ela)
-        + WEIGHTS["similarity_score"] * (1.0 - sim)
-        + WEIGHTS["ai_gen_score"] * (1.0 - ai)
-        + WEIGHTS["metadata_score"] * meta
-        + WEIGHTS["physics_score"] * phys
-        + WEIGHTS["context_score"] * ctx
-    )
+    risk_penalty = 0.0
 
-    authenticity_score = round(float(clamp(authenticity_raw)) * 100.0, 1)
+    # AI penalty (max ~50 points)
+    if ai > 0.3:
+        risk_penalty += (ai - 0.3) * 70
 
-    # Risk level
-    if authenticity_score >= 75:
+    # ELA tampering penalties
+    if ela > 0.3:
+        risk_penalty += (ela - 0.3) * 50
+    if r_ela > 0.3:
+        risk_penalty += (r_ela - 0.3) * 50
+
+    # Similarity penalty
+    if sim > 0.4:
+        risk_penalty += (sim - 0.4) * 60
+
+    # Metadata penalty - Only heavily penalize tampered EXIF (<0.5). MISSING exif (0.85) carries 0 penalty.
+    if meta < 0.5:
+        risk_penalty += (0.5 - meta) * 50
+
+    # Physics & Context penalties
+    if phys < 0.4:
+        risk_penalty += (0.4 - phys) * 40
+    if ctx < 0.4:
+        risk_penalty += (0.4 - ctx) * 40
+
+    authenticity_score = max(0.0, min(100.0, 100.0 - risk_penalty))
+    authenticity_score = round(authenticity_score, 1)
+
+    # Calibrated risk thresholds for the deductive scale
+    if authenticity_score >= 82:
         risk_level = "LOW"
-    elif authenticity_score >= 45:
+    elif authenticity_score >= 55:
         risk_level = "MEDIUM"
-    elif authenticity_score >= 20:
+    elif authenticity_score >= 25:
         risk_level = "HIGH"
     else:
         risk_level = "CRITICAL"
 
-    # Per-dimension fraud probabilities (inverted where needed)
+    # Per-dimension fraud probabilities (inverted where needed for UI display compatibility)
     tampering_probability = round((ela * 0.6 + r_ela * 0.4), 3)
     ai_generation_probability = round(ai, 3)
     metadata_fraud_score = round(1.0 - meta, 3)
@@ -124,23 +127,28 @@ def _build_reasons(
 ) -> List[str]:
     reasons: List[str] = []
 
-    if ai > 0.65:
+    if ai > 0.60:
         reasons.append("AI-generation detector indicates high likelihood of synthetic content")
-    if ela > 0.60 or r_ela > 0.60:
+    if ela > 0.40 or r_ela > 0.40:
         reasons.append("Strong ELA anomalies detected — possible region manipulation")
-    if sim > 0.72:
+    if sim > 0.60:
         reasons.append("Image highly similar to previous claims — possible reuse or duplication")
+    
+    # Metadata evaluation
     if meta < 0.40:
         reasons.append("Metadata inconsistencies detected — possible EXIF tampering")
-    if sam2 < 0.30:
-        reasons.append("Low segmentation confidence — object regions poorly defined")
+    elif meta <= 0.85:
+        reasons.append("⚠️ Missing EXIF metadata (Common for web uploads, but prevents complete forensic analysis)")
+        
     if phys < 0.40:
         reasons.append("Physical inconsistencies — shadow/lighting mismatch detected")
     if ctx < 0.40:
         reasons.append("Context mismatch — claim details inconsistent with verified real-world events")
 
-    if not reasons:
-        reasons.append("No significant fraud indicators detected")
+    # If the only recorded "reason" is the missing EXIF warning, or there are no reasons at all.
+    _has_strong_fraud = any(not r.startswith("⚠️") for r in reasons)
+    if not _has_strong_fraud:
+        reasons.insert(0, "✅ No significant visual fraud indicators detected")
 
     return reasons
 

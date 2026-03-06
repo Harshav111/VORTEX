@@ -5,10 +5,10 @@ const STROKE = 10;
 const CIRCUMFERENCE = Math.PI * RADIUS; // semicircle
 
 function getScoreColor(score) {
-  if (score >= 75) return "#22c55e";
-  if (score >= 45) return "#f59e0b";
-  if (score >= 20) return "#ef4444";
-  return "#dc2626";
+  if (score >= 82) return "#22c55e"; // Success green
+  if (score >= 55) return "#f59e0b"; // Warning amber
+  if (score >= 25) return "#ef4444"; // Danger red
+  return "#dc2626"; // Critical red
 }
 
 function getRiskLabel(level) {

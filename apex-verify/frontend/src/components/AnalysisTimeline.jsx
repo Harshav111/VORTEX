@@ -1,16 +1,16 @@
 import React, { useMemo } from "react";
 
 const PIPELINE_MODULES = [
-    { key: "metadata", label: "Metadata Forensics", icon: "🔍" },
-    { key: "forensics", label: "Error Level Analysis", icon: "🔬" },
-    { key: "segmentation", label: "Object Detection + SAM2", icon: "🎯" },
-    { key: "aigen", label: "AI-Generation Detection", icon: "🤖" },
-    { key: "similarity", label: "Similarity Search", icon: "🧲" },
-    { key: "physics", label: "Physics Consistency", icon: "⚡" },
-    { key: "context", label: "Context Verification", icon: "🌐" },
-    { key: "pattern", label: "Fraud Pattern Analysis", icon: "🕸️" },
-    { key: "explainability", "label": "Heatmap Generation", icon: "🗺️" },
-    { key: "alert", label: "Alert Assessment", icon: "🚨" },
+    { key: "metadata", label: "Metadata Forensics" },
+    { key: "forensics", label: "Error Level Analysis" },
+    { key: "segmentation", label: "Object Detection + SAM2" },
+    { key: "aigen", label: "AI-Generation Detection" },
+    { key: "similarity", label: "Similarity Search" },
+    { key: "physics", label: "Physics Consistency" },
+    { key: "context", label: "Context Verification" },
+    { key: "pattern", label: "Fraud Pattern Analysis" },
+    { key: "explainability", "label": "Heatmap Generation" },
+    { key: "alert", label: "Alert Assessment" },
 ];
 
 function StepBadge({ status }) {
@@ -61,12 +61,12 @@ export default function AnalysisTimeline({ modules, status, progress }) {
                         >
                             <div
                                 className={`w-2 h-2 rounded-full flex-shrink-0 transition-all duration-300 ${modState?.status === "complete" || modState?.status === "done"
-                                        ? "bg-success"
-                                        : modState?.status === "error"
-                                            ? "bg-danger"
-                                            : modState
-                                                ? "bg-accent animate-pulse"
-                                                : "bg-border"
+                                    ? "bg-success"
+                                    : modState?.status === "error"
+                                        ? "bg-danger"
+                                        : modState
+                                            ? "bg-accent animate-pulse"
+                                            : "bg-border"
                                     }`}
                             />
                             <span className="text-base leading-none">{mod.icon}</span>
