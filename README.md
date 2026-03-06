@@ -297,6 +297,7 @@ Upload an image and receive fraud analysis. Example response:
 ## 📜 License
 
 This project is licensed under the [MIT License](LICENSE).
+DEMO LINK:https://youtu.be/71cb4WtIJiw
 
 ---
 
